@@ -1,0 +1,14 @@
+# .gitignore — Keep credentials, local databases, and build outputs private.
+# Only reusable source files and the verified catalog belong in the repository.
+# Author: Pasquale Marzaioli
+node_modules/
+dist/
+.wrangler/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+data/catalog.sql
+.DS_Store
+*.log

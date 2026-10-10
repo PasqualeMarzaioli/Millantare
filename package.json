@@ -1,0 +1,29 @@
+{
+  "name": "millantare",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Daily rare words and original literature delivered through Telegram.",
+  "author": "Pasquale Marzaioli",
+  "license": "MIT",
+  "type": "module",
+  "engines": { "node": ">=22.13.0" },
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "lint": "eslint .",
+    "test": "node --experimental-sqlite --test",
+    "catalog:build": "node scripts/catalog.js",
+    "preview": "node scripts/catalog.js --preview",
+    "build": "npm run catalog:build && wrangler deploy --dry-run --outdir dist",
+    "db:create": "wrangler d1 create millantare",
+    "db:migrate:local": "wrangler d1 migrations apply millantare --local",
+    "db:migrate:remote": "wrangler d1 migrations apply millantare --remote",
+    "db:seed:local": "npm run catalog:build && wrangler d1 execute millantare --local --file=data/catalog.sql",
+    "db:seed:remote": "npm run catalog:build && wrangler d1 execute millantare --remote --file=data/catalog.sql",
+    "telegram:setup": "node scripts/telegram.js",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "eslint": "10.12.0",
+    "wrangler": "4.149.0"
+  }
+}

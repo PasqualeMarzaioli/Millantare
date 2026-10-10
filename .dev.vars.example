@@ -1,0 +1,5 @@
+# .dev.vars.example — Document the private credentials required by the sender.
+# Copy to .dev.vars for local testing; use Wrangler secrets in production.
+# Author: Pasquale Marzaioli
+TELEGRAM_BOT_TOKEN=""
+TELEGRAM_CHAT_ID=""

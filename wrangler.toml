@@ -1,0 +1,25 @@
+# wrangler.toml — Deploy the personal Telegram sender on Cloudflare Workers.
+# A periodic trigger checks local time; D1 prevents repeated daily deliveries.
+# Author: Pasquale Marzaioli
+name = "millantare"
+main = "src/worker.js"
+compatibility_date = "2026-10-09"
+workers_dev = true
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[vars]
+LANGUAGES = "it,fr,en"
+TIME_ZONE = "Europe/Berlin"
+SEND_TIME = "06:30"
+REGISTERS = "literary,rare,archaic"
+READING_KIND = "any"
+MAX_READING_CHARACTERS = "3500"
+PAUSED = "false"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "millantare"
+database_id = "f8309df5-45da-4b2d-ac61-9c6bb74390b9"
+migrations_dir = "migrations"
