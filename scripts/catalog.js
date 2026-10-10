@@ -122,7 +122,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const catalog = compileCatalog(JSON.parse(await readFile(new URL("../data/catalog.json", import.meta.url), "utf8")));
     if (process.argv.includes("--preview")) {
-      for (const language of ["it", "fr", "en"]) {
+      for (const language of new Set(catalog.words.map((word) => word.language))) {
         console.log(`${catalog.words.find((word) => word.language === language)?.message ?? ""}\n`);
       }
       console.log(catalog.readings[0].message);

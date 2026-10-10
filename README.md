@@ -5,13 +5,13 @@
 
 A personal Telegram bot that sends one uncommon word in each selected language and one original literary reading every day. Definitions and examples use the word's own language. Readings retain their original language, spelling, punctuation, and verse structure; excerpts are explicitly identified.
 
-The collection includes **1,101 words** (367 each in Italian, French, and English) and **367 original readings** (123 Italian, 122 French, and 122 English). A fresh installation has **367 complete days** with all registers, `READING_KIND="any"`, and the 3,500-character reading limit. An installation that has already consumed the initial day's three words and Italian reading has **366 complete days remaining**. Definitions and examples use their own language; readings include complete poems, short prose, and explicitly marked excerpts.
+The collection includes **2,936 words** (367 in each of eight languages) and **977 original readings** (123 Italian and 122 in each other language). Italian, French, and English remain the active defaults; German, Traditional Chinese, Japanese, Spanish, and Dutch are available to select. A fresh installation using the default languages has **367 complete days** with all registers, `READING_KIND="any"`, and the 3,500-character reading limit. An installation that has already consumed the initial day's three words and Italian reading has **366 complete days remaining**. Definitions and examples use their own language; readings include complete poems, short prose, and explicitly marked excerpts.
 
-The first 27 words and nine readings retain their original identities and text, so updating an existing installation preserves its delivery history. Capacity depends on actual reservations and preferences: narrowing the language, register, reading kind, or length can reduce it. This is a finite collection; add verified entries before it runs out.
+All previously bundled words and readings retain their identities and text, so updating an existing installation preserves its delivery history. Capacity depends on actual reservations and preferences: narrowing the language, register, reading kind, or length can reduce it. A single optional language has 367 words and 122 readings; its readings therefore cover 122 days before that selection pauses. This is a finite collection; add verified entries before it runs out.
 
 ## How it runs
 
-Cloudflare Workers runs a short task every 15 minutes. After your chosen local time, the task reserves that day's words and reading in D1, sends them to your private Telegram chat, and exits. Your computer can be switched off. Telegram on your phone receives four messages: three word cards and one reading.
+Cloudflare Workers runs a short task every 15 minutes. After your chosen local time, the task reserves that day's words and reading in D1, sends them to your private Telegram chat, and exits. Your computer can be switched off. With the default languages, Telegram on your phone receives four messages: three word cards and one reading.
 
 The first run after `SEND_TIME` sends the daily selection, normally within 15 minutes. Scheduling uses the configured time zone and follows daylight saving time. Missed dates are not backfilled. A date can be claimed only once; moving the delivery time or changing preferences does not create a second delivery that day.
 
@@ -41,6 +41,23 @@ The development tools are pinned in `package-lock.json`; the worker uses platfor
 
 ## Initial setup
 
+### Install Node.js and npm
+
+Node.js runs the setup tools; npm installs the project's pinned dependencies. Install them once on the computer you use for setup:
+
+1. Open the official [Node.js download page](https://nodejs.org/en/download), select a version marked **LTS**, and choose your operating system. Millantare requires Node.js **22.13 or newer**.
+2. On **Windows**, download the `.msi` installer, open it, and complete the installation with npm and the PATH option enabled. On **macOS**, download the `.pkg` installer and follow its prompts. Both installers include npm, so you do not need a separate npm download. On **Linux**, select Linux on the download page and follow its installation instructions with npm selected. See the [official Node.js and npm installation guide](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm/).
+3. Close and reopen your terminal after installation: use **Command Prompt** on Windows, **Terminal** on macOS, or your terminal app on Linux. Check both commands:
+
+   ```sh
+   node --version
+   npm --version
+   ```
+
+   Each command should print a version number. If a command is not found, restart the terminal or reinstall Node.js with npm included. If Node.js is older than 22.13, install a supported LTS version before continuing.
+
+You can skip installation if both commands already work and Node.js meets the minimum version. No npm account or global Wrangler installation is needed; the project uses `npm ci` and `npx` below.
+
 ### Create a Cloudflare account
 
 1. Open [Cloudflare's sign-up page](https://dash.cloudflare.com/sign-up), enter your email address and a password, and select **Create Account**. If you already have an account, sign in instead. See the [official account instructions](https://developers.cloudflare.com/fundamentals/account/create-account/).
@@ -60,7 +77,7 @@ If the token is exposed, send `/revoke` to BotFather, choose the affected bot, a
 
 ### Install and connect Millantare
 
-1. Download or clone [the Millantare repository](https://github.com/PasqualeMarzaioli/Millantare). On its GitHub page, select **Code → Download ZIP**, extract the archive, and open a terminal in its root folder, the directory containing `package.json`. The included catalog is already in `data/catalog.json`; no separate catalog download is needed. Install [Node.js](https://nodejs.org/en/download) 22.13 or newer with npm if needed, then install the pinned tools. Run all subsequent commands from this project folder:
+1. Complete the Node.js and npm installation above, then download or clone [the Millantare repository](https://github.com/PasqualeMarzaioli/Millantare). On its GitHub page, select **Code → Download ZIP**, extract the archive, and open a terminal in its root folder, the directory containing `package.json`. To change folders from a terminal, type `cd`, a space, and the full path to the extracted folder in double quotes, then press Enter. All eight catalogs are already in `data/catalog.json`; no separate catalog download is needed. Install the pinned tools and run all subsequent commands from this project folder:
 
    ```sh
    npm ci
@@ -94,12 +111,14 @@ If the token is exposed, send `/revoke` to BotFather, choose the affected bot, a
 
    Copy the resulting `database_id` into `wrangler.toml`, replacing its existing value with your own database ID. Keep the binding named `DB`. Do this once for each person's installation, not for updates; do not reuse another installation's database ID.
 
-5. Apply the schema and import the collection:
+5. Apply the schema and import all eight catalogs into your remote D1 database:
 
    ```sh
    npm run db:migrate:remote
    npm run db:seed:remote
    ```
+
+   Wait for both commands to finish successfully. The import includes all 2,936 words and 977 readings, including the five optional languages. It makes the content available without enabling those languages: only the tags in `LANGUAGES` are sent. For an existing installation, use its current database ID and run `npm run db:seed:remote` to add the catalogs; existing delivery history is preserved.
 
 6. Store the credentials through the CLI's private prompts:
 
@@ -140,17 +159,39 @@ If you change variables in the Cloudflare dashboard, copy those changes into `wr
 | `MAX_READING_CHARACTERS` | `3500` | Maximum text length, excluding attribution; 100–3500. |
 | `PAUSED` | `false` | Set `true` to suspend all sending without changing history. |
 
-Reading languages are balanced among available unused readings, with random selection breaking ties. If the initial Italian reading has already been reserved, the next 366 readings supply 122 unused texts per language. A language that has no remaining eligible reading is skipped. No previous selection is used as a fallback.
+Reading languages are balanced among available unused readings in the selected languages, with random selection breaking ties. With the default languages, if the initial Italian reading has already been reserved, the next 366 readings supply 122 unused texts per language. A language that has no remaining eligible reading is skipped. No previous selection is used as a fallback.
 
 ## Choose another language or import a shared catalog
 
-The bundled catalog contains **Italian (`it`), French (`fr`), and English (`en`) only**. All three arrive together when you download the project. Selecting another language does not download, generate, or translate its content. There is currently no bundled Spanish catalog or Spanish download offered by this repository.
+All eight catalogs arrive together in `data/catalog.json` when you download the project. Importing them makes their content available in D1; only tags listed in `LANGUAGES` are sent. The five optional catalogs are not enabled automatically.
+
+| Language | Tag | Words | Original readings | Active by default |
+| --- | --- | ---: | ---: | --- |
+| Italian | `it` | 367 | 123 | Yes |
+| French | `fr` | 367 | 122 | Yes |
+| English | `en` | 367 | 122 | Yes |
+| German | `de` | 367 | 122 | No |
+| Traditional Chinese | `zh-hant` | 367 | 122 | No |
+| Japanese | `ja` | 367 | 122 | No |
+| Spanish | `es` | 367 | 122 | No |
+| Dutch | `nl` | 367 | 122 | No |
+
+Use the lowercase tag `zh-hant` for the bundled Traditional Chinese text. Selecting `zh` or `zh-hans` does not match it. Word definitions and examples use traditional characters; readings retain the traditional script and historical variants of the cited Chinese originals. The other new catalogs contain native-language definitions and examples and original literary readings.
 
 To keep only Italian and English, set `LANGUAGES = "it,en"` in `[vars]` in `wrangler.toml`, then run `npm run deploy`. This setting applies to both words and the language of the daily reading. Previously imported French content can stay in D1; it will not be selected while `fr` is disabled.
 
-To replace French with Spanish:
+To replace French with the bundled Spanish catalog, set `LANGUAGES = "it,es,en"` in `[vars]` in `wrangler.toml`, then import the enlarged collection into your existing database and deploy:
 
-1. Obtain or prepare a reviewed Spanish JSON catalog with `words` and `readings` arrays, following the fields documented below. Word definitions and examples must be in Spanish. Readings must be original Spanish works, with their literary author, edition, source, rights information, and passage ranges. Use `language: "es"`, `definitionLanguage: "es"` for words, and `originalLanguage: "es"` for readings. Relabeling French entries does not translate them or satisfy these requirements.
+```sh
+npm run db:seed:remote
+npm run deploy
+```
+
+To make all five optional catalogs available while keeping the active languages unchanged, run `npm run db:seed:remote` with `LANGUAGES = "it,fr,en"`. Content-only additions do not require a worker deployment.
+
+To import an additional shared catalog:
+
+1. Obtain or prepare a reviewed JSON catalog with `words` and `readings` arrays, following the fields documented below. Definitions and examples must use the word's language. Readings must be original works in that language, with their literary author, edition, source, rights information, and passage ranges. Keep `language`, `definitionLanguage`, and `originalLanguage` consistent. Relabeling existing entries does not translate them or satisfy these requirements.
 2. Save that JSON file as `additional-catalog.json` in the project folder. Review its sources and licensing before importing. You can prepare new entries from dictionaries and original-language editions; a dictionary or literary website is not automatically a ready-to-import Millantare catalog.
 3. Make a backup of your current `data/catalog.json`, then merge the shared entries using this command from the project folder. It parses JSON as data and runs the existing validator before writing:
 
@@ -174,20 +215,15 @@ To replace French with Spanish:
    ```
 
    Malformed entries, repeated words/examples, and overlapping passages stop the merge before the original catalog is overwritten. Do not merge the same pack twice. For corrections to existing entries, edit the existing entries rather than append duplicates.
-4. Set `LANGUAGES = "it,es,en"` in `[vars]` in `wrangler.toml`, then import and deploy:
+4. Import with `npm run db:seed:remote`. To activate another language, add its tag to `LANGUAGES` in `[vars]` in `wrangler.toml`, then run `npm run deploy`.
 
-   ```sh
-   npm run db:seed:remote
-   npm run deploy
-   ```
-
-Use the **existing** D1 database when changing languages. Its history continues to block previous selections if you enable a language again. Complete daily capacity is limited by unused words in each selected language and the supply of eligible original readings across those languages; changing the setting alone does not provide a year's content. If no Spanish words exist, the sender reports that shortage and continues with the other available selections.
+Use the **existing** D1 database when changing languages. Its history continues to block previous selections if you enable a language again. Complete daily capacity is limited by unused words in each selected language and the supply of eligible original readings across those languages; changing the setting alone does not provide a year's content. Missing content for a selected tag produces a shortage notice while other available selections continue.
 
 ## Add words, languages, or readings
 
 Edit `data/catalog.json`, run `npm run catalog:build`, and import the result with `npm run db:seed:remote`. The worker does not need redeployment for content-only additions.
 
-For words, follow an existing entry. Provide the lowercase `language`, matching `definitionLanguage`, lemma, grammatical category, register, definition, usage example, and a public HTTPS dictionary source. Write the definition and example in that language. Labels and editorial documentation use English. The original 27 words retain independently worded definitions and examples. The added definitions are adapted from linked Wiktionary revisions, with original examples or attested quotations. Sources allow a reader to verify the selected sense. Register labels are editorial guidance rather than a universal frequency ranking; an archaic sense can coexist with another current meaning.
+For words, follow an existing entry. Provide the lowercase `language`, matching `definitionLanguage`, lemma, grammatical category, register, definition, usage example, and a public HTTPS dictionary source. Write the definition and example in that language. Labels and editorial documentation use English. The original 27 words retain independently worded definitions and examples. Added definitions and examples are adapted from linked native-language Wiktionary revisions, with quoted examples retaining their attribution. [Kaikki's native-edition extracts](https://kaikki.org/) support lexical selection; selected text is checked against the cited revision. Sources allow a reader to verify the selected sense. Register labels are editorial guidance rather than a universal frequency ranking; an archaic sense can coexist with another current meaning. Literary and poetic labels map to `literary`, rare to `rare`, and dated or obsolete to `archaic`. Formal usages and Japanese four-character idioms may also be grouped as `literary`.
 
 Reused lexical text declares `license: "CC-BY-SA-4.0"` and a `rightsNote`. Its source URL identifies the revision and links to the page history for contributor attribution, as permitted by the [Wikimedia reuse terms](https://foundation.wikimedia.org/wiki/Terms_of_Use#7._Licensing_of_Content). Cards retain that source and the [CC BY-SA 4.0 license link](https://creativecommons.org/licenses/by-sa/4.0/). Formatting, usage-label extraction, and minor transcription corrections are adaptations. Quoted examples retain `exampleAttribution`; their historical source is identified on the dictionary page. Keep attribution and license information when editing or redistributing these lexical entries.
 
@@ -205,7 +241,7 @@ The validator checks required metadata, duplicate identities, overlapping ranges
 
 Reimporting is safe for history. Catalog imports are additive: removing an entry from the JSON does not remove an older imported row. To withdraw an erroneous unused entry, explicitly delete that catalog row from `words` or `readings` through D1 after reviewing its identity; never delete its `used_words` or `used_readings` reservation.
 
-The included literary texts come from historical editions, with author and provenance retained in each entry. Authors include Pascoli, Carducci, Leopardi, Baudelaire, Verlaine, Renard, Shakespeare, Dickinson, and Keats, alongside the original starter authors. Only the literary text is reproduced; modern commentary, introductions, translations, and editorial notes are excluded. The MIT license covers project code and original explanatory content. The licensed dictionary material and public-domain literary works retain their separate rights and attribution.
+The included literary texts retain author and provenance in each entry. Authors include Pascoli, Carducci, Leopardi, Baudelaire, Verlaine, Renard, Shakespeare, Dickinson, and Keats, alongside the original starter authors. The optional catalogs add Goethe's German poetry, poems listed in *Three Hundred Tang Poems*, the medieval Japanese *Ogura Hyakunin Isshu* and excerpts from Natsume Sōseki's *Kokoro*, Bécquer's *Rimas* and excerpts from Unamuno's *Niebla*, and Gorter's *Verzen* with excerpts from Multatuli's *Max Havelaar*. Original verse and prose are transcribed from Wikisource and Project Gutenberg; each entry identifies its edition and passage range. Only the literary text is reproduced; modern commentary, introductions, translations, and editorial notes are excluded. The MIT license covers project code and original explanatory content. The licensed dictionary material and public-domain literary works retain their separate rights and attribution.
 
 ## Local verification
 
@@ -220,7 +256,7 @@ npm run db:seed:local
 
 Tests use Node's bundled SQLite engine and intercept outgoing Telegram requests. They exercise the actual SQL, concurrent scheduling, daylight saving time, exhaustion, preferences, reimported content, overlapping excerpts, batch rollback, and uncertain network outcomes. A controlled SQLite random function verifies shuffled selection without relying on chance; reading-language counts stay balanced. A full simulation reserves the starter day, imports the enlarged catalog, and runs 366 future days: 1,468 distinct messages across 367 days, including 1,101 distinct words and examples and 367 readings. It checks that the previously consumed day remains blocked and exhaustion never recycles content. No production credentials or real messages are needed. Node 22 may print an experimental SQLite warning during tests; SQLite is only a test adapter here, while production uses D1.
 
-`npm run preview` prints one card in each starter language and a reading without consuming history or sending messages. `npm run build` validates the catalog and creates a Cloudflare deployment bundle without deploying it.
+`npm run preview` prints one word card in each available language and a reading without consuming history, changing preferences, or sending messages. Tests also check the five optional catalogs, their language tags, unchanged active defaults, and complete verse/stanza counts for representative German poems. A second simulation selects only the five optional languages for 367 days, producing 2,202 distinct messages without consuming disabled-language content. `npm run build` validates the catalog and creates a Cloudflare deployment bundle without deploying it.
 
 For a real local delivery test, copy `.dev.vars.example` to `.dev.vars`, enter a separate test bot's token and private chat ID, initialize local D1, and run `npm run dev`. Trigger its schedule locally:
 

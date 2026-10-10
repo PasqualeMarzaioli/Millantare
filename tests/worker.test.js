@@ -79,8 +79,8 @@ test("the starter catalog contains nine days of words and original readings", ()
 });
 
 test("the expanded catalog retains the starter content and contains 367 complete days", () => {
-  assert.equal(fullCatalog.words.length, 1101);
-  assert.equal(fullCatalog.readings.length, 367);
+  assert.equal(fullCatalog.words.length, 2936);
+  assert.equal(fullCatalog.readings.length, 977);
   for (const language of ["it", "fr", "en"]) {
     assert.equal(fullCatalog.words.filter((word) => word.language === language).length, 367);
     assert.equal(fullCatalog.readings.filter((reading) => reading.language === language).length, language === "it" ? 123 : 122);
@@ -104,6 +104,63 @@ test("the expanded catalog retains the starter content and contains 367 complete
     assert.ok(!readingTexts.some((reading) => reading.language === word.language &&
       reading.text.includes(normalize(word.example))), `Example repeats a bundled reading: ${word.lemma}`);
   }
+});
+
+test("five optional catalogs provide 367 words and 122 original readings each", () => {
+  for (const language of ["de", "zh-hant", "ja", "es", "nl"]) {
+    const words = fullCatalog.words.filter((word) => word.language === language);
+    const readings = fullCatalog.readings.filter((reading) => reading.language === language);
+    assert.equal(words.length, 367, language);
+    assert.equal(readings.length, 122, language);
+    assert.ok(words.every((word) => word.definitionLanguage === language));
+    assert.ok(readings.every((reading) => reading.originalLanguage === language && !reading.isTranslation));
+  }
+  const config = readFileSync(new URL("../wrangler.toml", import.meta.url), "utf8");
+  assert.match(config, /^LANGUAGES = "it,fr,en"$/m);
+  assert.deepEqual(settings({}).languages, ["it", "fr", "en"]);
+  assert.equal(fullCatalog.words.some((word) => word.language === "zh" || word.language === "zh-hans"), false);
+  assert.equal(fullCatalog.readings.some((reading) => reading.language === "zh" || reading.language === "zh-hans"), false);
+});
+
+test("preview displays every available word language without changing preferences", () => {
+  const result = spawnSync(process.execPath, ["scripts/catalog.js", "--preview"], {
+    cwd: new URL("..", import.meta.url), encoding: "utf8",
+  });
+  assert.equal(result.status, 0, result.stderr);
+  for (const language of ["it", "fr", "en", "de", "zh-hant", "ja", "es", "nl"]) {
+    assert.ok(result.stdout.includes(` · ${language.toUpperCase()}\n`), language);
+  }
+});
+
+test("German poems retain complete verses and exclude translated works", () => {
+  const readings = fullCatalog.readings.filter((reading) => reading.language === "de");
+  for (const [title, verses, stanzas] of [["Erlkönig", 32, 8], ["Ein Gleiches", 8, 1], ["Gefunden", 20, 5]]) {
+    const poem = readings.find((reading) => reading.title === title);
+    assert.equal(poem.excerpt, false, title);
+    assert.equal(poem.text.split("\n").filter(Boolean).length, verses, title);
+    assert.equal(poem.text.split("\n\n").length, stanzas, title);
+  }
+  for (const poem of readings) {
+    assert.doesNotMatch(poem.title, /^(?:Aus einem Stammbuch von 1604|Madrigal [23]|Reue|Das Schreyen|Der Edelknabe und die Müllerinn?)$/);
+    assert.doesNotMatch(poem.text, /\[\s*\d+\s*\]/);
+  }
+});
+
+test("optional catalogs supply 367 daily selections without consuming disabled content", async (t) => {
+  const { env, sent } = setup(t);
+  env.DB.db.exec(fullCatalog.sql);
+  const languages = ["de", "es", "ja", "nl", "zh-hant"];
+  for (let day = 0; day < 367; day++) {
+    assert.equal(await sendDaily({ ...env, LANGUAGES: languages.join(",") },
+      new Date(Date.UTC(2026, 9, 9 + day, 10))), "sent", `Optional catalog day ${day + 1}`);
+  }
+  assert.equal(sent.length, 2202);
+  assert.equal(new Set(sent).size, 2202);
+  assert.deepEqual(env.DB.db.prepare("SELECT language, COUNT(*) AS n FROM used_words GROUP BY language ORDER BY language").all()
+    .map((row) => ({ ...row })), languages.map((language) => ({ language, n: 367 })));
+  const readings = env.DB.db.prepare("SELECT language, COUNT(*) AS n FROM used_readings GROUP BY language ORDER BY language").all();
+  assert.deepEqual(readings.map((row) => row.language), languages);
+  assert.ok(readings.every((row) => row.n === 73 || row.n === 74));
 });
 
 test("additive import supplies 366 future days while preserving the already delivered day", async (t) => {
